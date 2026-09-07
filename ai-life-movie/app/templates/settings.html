@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+    <h1>{{ strings.settings }}</h1>
+</section>
+
+<section class="panel">
+    <div id="settingsContent">Loading...</div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(async () => {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    const el = document.getElementById('settingsContent');
+    el.innerHTML = `
+        <div class="settings-status">
+            <span class="badge ${s.gemini_configured ? 'badge-ready' : 'badge-draft'}">
+                Gemini API: ${s.gemini_configured ? 'Configured ✓' : 'Not configured — Demo Mode active'}
+            </span>
+        </div>
+        <form class="settings-form" id="appSettingsForm">
+            <label>Default Language
+                <select name="default_language">
+                    <option value="en" ${s.default_language==='en'?'selected':''}>English</option>
+                    <option value="ar" ${s.default_language==='ar'?'selected':''}>العربية</option>
+                </select>
+            </label>
+            <label>Default Movie Style
+                <select name="default_movie_style">
+                    <option value="cinematic" ${s.default_movie_style==='cinematic'?'selected':''}>Cinematic</option>
+                    <option value="travel" ${s.default_movie_style==='travel'?'selected':''}>Travel</option>
+                    <option value="memories" ${s.default_movie_style==='memories'?'selected':''}>Memories</option>
+                    <option value="dynamic" ${s.default_movie_style==='dynamic'?'selected':''}>Dynamic</option>
+                    <option value="minimal" ${s.default_movie_style==='minimal'?'selected':''}>Minimal</option>
+                    <option value="social" ${s.default_movie_style==='social'?'selected':''}>Social</option>
+                </select>
+            </label>
+            <label>Default Aspect Ratio
+                <select name="default_aspect_ratio">
+                    <option value="16:9" ${s.default_aspect_ratio==='16:9'?'selected':''}>16:9</option>
+                    <option value="9:16" ${s.default_aspect_ratio==='9:16'?'selected':''}>9:16</option>
+                    <option value="1:1" ${s.default_aspect_ratio==='1:1'?'selected':''}>1:1</option>
+                </select>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" name="dark_mode" ${s.dark_mode==='true'?'checked':''}> Dark Mode
+            </label>
+        </form>
+        <h3 class="section-title">Music Tracks (synthesized, royalty-free placeholders)</h3>
+        <ul class="track-list">
+            ${s.music_tracks.map(t => `<li><strong>${t.name}</strong> — ${t.description}</li>`).join('')}
+        </ul>
+        <p class="privacy-note">
+            🔒 Your photos and videos are stored locally by default. Only compact text summaries
+            (event labels, tags, timing) are sent to Gemini for story generation — never full-resolution
+            media. If no Gemini API key is configured, the app runs entirely offline in Demo Mode.
+        </p>
+    `;
+    document.getElementById('appSettingsForm').addEventListener('change', async (e) => {
+        const form = e.currentTarget;
+        const payload = {
+            default_language: form.default_language.value,
+            default_movie_style: form.default_movie_style.value,
+            default_aspect_ratio: form.default_aspect_ratio.value,
+            dark_mode: form.dark_mode.checked,
+        };
+        await fetch('/api/settings', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    });
+})();
+</script>
+{% endblock %}

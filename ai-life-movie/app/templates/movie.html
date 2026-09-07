@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+    <h1>{{ project.title }}</h1>
+</section>
+
+<div id="progressPanel" class="panel" style="{{ 'display:none;' if movie }}">
+    <h2 class="section-title">Generating your movie...</h2>
+    <div class="progress-bar"><div id="jobBarFill" class="progress-fill"></div></div>
+    <div id="jobMessage" class="status-line">Queued</div>
+    <div id="jobStateList" class="job-state-list"></div>
+</div>
+
+<div id="previewPanel" class="panel" style="{{ '' if movie else 'display:none;' }}">
+    <h2 class="section-title">{{ strings.preview }}</h2>
+    <video id="moviePlayer" controls class="movie-player" {% if movie %}src="{{ movie.file_url }}"{% endif %}></video>
+    <div class="movie-details" id="movieDetails"></div>
+    <div class="actions-row">
+        <button class="btn btn-outline" onclick="regenerate('{{ project.id }}')">↻ {{ strings.regenerate }}</button>
+        <a class="btn btn-primary" id="downloadBtn" download>⬇ {{ strings.export }}</a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PROJECT_ID = "{{ project.id }}";
+const urlParams = new URLSearchParams(window.location.search);
+let jobId = urlParams.get('job');
+
+const JOB_STATES = ["QUEUED","ANALYZING","SELECTING","STORY_GENERATION","GENERATING_NARRATION",
+    "BUILDING_TIMELINE","RENDERING","FINALIZING","COMPLETED"];
+
+function renderStateList(current) {
+    const el = document.getElementById('jobStateList');
+    el.innerHTML = JOB_STATES.map(s => {
+        const done = JOB_STATES.indexOf(s) < JOB_STATES.indexOf(current);
+        const active = s === current;
+        return `<span class="job-state ${done ? 'done' : ''} ${active ? 'active' : ''}">${s.replace(/_/g,' ')}</span>`;
+    }).join('');
+}
+
+async function pollJob() {
+    if (!jobId) return;
+    const res = await fetch(`/api/jobs/${jobId}`);
+    if (!res.ok) return;
+    const job = await res.json();
+    document.getElementById('jobBarFill').style.width = job.progress + '%';
+    document.getElementById('jobMessage').textContent = job.message;
+    renderStateList(job.state);
+
+    if (job.state === 'COMPLETED') {
+        const movieRes = await fetch(`/api/movies/${job.result_movie_id}`);
+        const movie = await movieRes.json();
+        showMovie(movie);
+    } else if (job.state === 'FAILED') {
+        document.getElementById('jobMessage').textContent = '❌ ' + job.message;
+    } else {
+        setTimeout(pollJob, 2000);
+    }
+}
+
+function showMovie(movie) {
+    document.getElementById('progressPanel').style.display = 'none';
+    document.getElementById('previewPanel').style.display = 'block';
+    const src = movie.file_url;
+    document.getElementById('moviePlayer').src = src;
+    document.getElementById('downloadBtn').href = src;
+    document.getElementById('movieDetails').innerHTML =
+        `<span>${movie.duration_seconds}s</span> · <span>${movie.resolution}</span> · <span>${movie.style}</span>`;
+}
+
+async function regenerate(projectId) {
+    const res = await fetch(`/api/projects/${projectId}/movie`, {method: 'POST'});
+    const data = await res.json();
+    jobId = data.job_id;
+    document.getElementById('progressPanel').style.display = 'block';
+    document.getElementById('previewPanel').style.display = 'none';
+    pollJob();
+}
+
+if (jobId) {
+    pollJob();
+} else if (!{{ 'true' if movie else 'false' }}) {
+    document.getElementById('progressPanel').innerHTML = '<p class="empty-state">No movie generated yet. Go back and click Generate Movie.</p>';
+}
+</script>
+{% endblock %}

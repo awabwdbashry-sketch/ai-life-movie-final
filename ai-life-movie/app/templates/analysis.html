@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+    <h1>{{ strings.analyze }}</h1>
+</section>
+
+<section class="panel">
+    <button class="btn btn-primary" id="runAnalysisBtn" onclick="runAnalysis()">▶ {{ strings.analyze }}</button>
+    <div id="analysisStatus" class="status-line"></div>
+</section>
+
+<section class="panel">
+    <h2 class="section-title">{{ strings.timeline }}</h2>
+    <div id="timelineContainer" class="timeline-container"></div>
+</section>
+
+<section class="panel">
+    <h2 class="section-title">Events</h2>
+    <div id="eventsContainer" class="events-container"></div>
+</section>
+
+<section class="actions-row">
+    <a class="btn btn-outline" href="/project/{{ project.id }}?lang={{ lang }}">← Back</a>
+    <button class="btn btn-primary btn-lg" onclick="startMovieGeneration('{{ project.id }}', '{{ lang }}')">🎬 {{ strings.generate_movie }}</button>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PROJECT_ID = "{{ project.id }}";
+
+async function runAnalysis() {
+    const statusEl = document.getElementById('analysisStatus');
+    statusEl.textContent = 'Analyzing media — this may take a moment...';
+    const res = await fetch(`/api/projects/${PROJECT_ID}/analyze`, {method: 'POST'});
+    const data = await res.json();
+    statusEl.textContent = `Analyzed ${data.media.length} items into ${data.events.length} events.`;
+    renderTimeline(data.media);
+    renderEvents(data.events, data.media);
+}
+
+function renderTimeline(media) {
+    const container = document.getElementById('timelineContainer');
+    container.innerHTML = '';
+    const dated = media.filter(m => m.captured_at).sort((a,b) => new Date(a.captured_at) - new Date(b.captured_at));
+    dated.forEach(m => {
+        const icon = m.media_type === 'image' ? '📸' : '🎥';
+        const el = document.createElement('div');
+        el.className = 'timeline-item';
+        const time = new Date(m.captured_at);
+        el.innerHTML = `<span class="timeline-time">${time.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span> ${icon}
+            <img class="timeline-thumb" src="${m.thumbnail_url || ''}" onerror="this.style.display='none'">
+            <span class="timeline-quality">Q:${m.quality_score}</span>`;
+        container.appendChild(el);
+    });
+    if (!dated.length) container.innerHTML = '<p class="empty-state">No timeline data yet — run analysis.</p>';
+}
+
+function renderEvents(events, media) {
+    const container = document.getElementById('eventsContainer');
+    container.innerHTML = '';
+    events.sort((a,b) => a.order_index - b.order_index).forEach(ev => {
+        const evMedia = media.filter(m => ev.media_ids.includes(m.id));
+        const el = document.createElement('div');
+        el.className = 'event-card';
+        el.innerHTML = `<h3>${ev.label}</h3><p class="event-summary">${ev.summary}</p>
+            <div class="event-thumbs">${evMedia.slice(0,6).map(m => `<img src="${m.thumbnail_url || ''}" onerror="this.style.display='none'">`).join('')}</div>`;
+        container.appendChild(el);
+    });
+    if (!events.length) container.innerHTML = '<p class="empty-state">No events yet.</p>';
+}
+
+async function startMovieGeneration(projectId, lang) {
+    const res = await fetch(`/api/projects/${projectId}/movie`, {method: 'POST'});
+    const data = await res.json();
+    window.location.href = `/movie/${projectId}?lang=${lang}&job=${data.job_id}`;
+}
+
+// Load existing timeline on page load
+(async () => {
+    const res = await fetch(`/api/projects/${PROJECT_ID}/timeline`);
+    if (res.ok) {
+        const data = await res.json();
+        const mediaRes = await fetch(`/api/projects/${PROJECT_ID}/media`);
+        const media = await mediaRes.json();
+        renderTimeline(media);
+        renderEvents(data.events, media);
+    }
+})();
+</script>
+{% endblock %}

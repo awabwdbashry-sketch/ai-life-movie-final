@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-header">
+    <h1>{{ project.title }}</h1>
+    <span class="badge badge-{{ project.status }}">{{ project.status }}</span>
+</section>
+
+<section class="panel">
+    <h2 class="section-title">{{ strings.upload_media }}</h2>
+    <div id="dropzone" class="dropzone">
+        <p>{{ strings.drag_drop_hint }}</p>
+        <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm" hidden>
+        <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+    </div>
+    <div id="uploadProgress" class="upload-progress" style="display:none;">
+        <div class="progress-bar"><div id="uploadBarFill" class="progress-fill"></div></div>
+        <span id="uploadStatus"></span>
+    </div>
+    <div id="mediaGrid" class="media-grid"></div>
+</section>
+
+<section class="panel">
+    <h2 class="section-title">{{ strings.movie_settings }}</h2>
+    <form id="settingsForm" class="settings-form">
+        <label>{{ strings.style }}
+            <select name="style" id="styleSelect">
+                <option value="cinematic" {{ 'selected' if project.style=='cinematic' }}>Cinematic</option>
+                <option value="travel" {{ 'selected' if project.style=='travel' }}>Travel</option>
+                <option value="memories" {{ 'selected' if project.style=='memories' }}>Memories</option>
+                <option value="dynamic" {{ 'selected' if project.style=='dynamic' }}>Dynamic</option>
+                <option value="minimal" {{ 'selected' if project.style=='minimal' }}>Minimal</option>
+                <option value="social" {{ 'selected' if project.style=='social' }}>Social</option>
+            </select>
+        </label>
+        <label>{{ strings.duration }}
+            <select name="target_duration_seconds" id="durationSelect">
+                <option value="30" {{ 'selected' if project.target_duration_seconds==30 }}>30s</option>
+                <option value="60" {{ 'selected' if project.target_duration_seconds==60 }}>60s</option>
+                <option value="90" {{ 'selected' if project.target_duration_seconds==90 }}>90s</option>
+                <option value="120" {{ 'selected' if project.target_duration_seconds==120 }}>2 min</option>
+                <option value="180" {{ 'selected' if project.target_duration_seconds==180 }}>3 min</option>
+                <option value="300" {{ 'selected' if project.target_duration_seconds==300 }}>5 min</option>
+            </select>
+        </label>
+        <label>{{ strings.aspect_ratio }}
+            <select name="aspect_ratio" id="aspectSelect">
+                <option value="16:9" {{ 'selected' if project.aspect_ratio=='16:9' }}>16:9 (Landscape)</option>
+                <option value="9:16" {{ 'selected' if project.aspect_ratio=='9:16' }}>9:16 (Vertical)</option>
+                <option value="1:1" {{ 'selected' if project.aspect_ratio=='1:1' }}>1:1 (Square)</option>
+            </select>
+        </label>
+        <label>{{ strings.language }}
+            <select name="language" id="languageSelect">
+                <option value="en" {{ 'selected' if project.language=='en' }}>English</option>
+                <option value="ar" {{ 'selected' if project.language=='ar' }}>العربية</option>
+            </select>
+        </label>
+        <label class="checkbox-label">
+            <input type="checkbox" name="narration_enabled" id="narrationCheck" {{ 'checked' if project.narration_enabled }}>
+            {{ strings.narration }}
+        </label>
+        <label class="checkbox-label">
+            <input type="checkbox" name="subtitles_enabled" id="subtitlesCheck" {{ 'checked' if project.subtitles_enabled }}>
+            {{ strings.subtitles }}
+        </label>
+        <label>{{ strings.music }}
+            <select name="music_track" id="musicSelect">
+                <option value="warm_memories" {{ 'selected' if project.music_track=='warm_memories' }}>Warm Memories</option>
+                <option value="gentle_travel" {{ 'selected' if project.music_track=='gentle_travel' }}>Gentle Travel</option>
+                <option value="uplifting_pulse" {{ 'selected' if project.music_track=='uplifting_pulse' }}>Uplifting Pulse</option>
+                <option value="minimal_air" {{ 'selected' if project.music_track=='minimal_air' }}>Minimal Air</option>
+                <option value="silence" {{ 'selected' if project.music_track=='silence' }}>No Music</option>
+            </select>
+        </label>
+    </form>
+</section>
+
+<section class="actions-row">
+    <a class="btn btn-outline" href="/project/{{ project.id }}/analysis?lang={{ lang }}">{{ strings.analyze }} →</a>
+    <button class="btn btn-primary" onclick="saveAndGenerate('{{ project.id }}', '{{ lang }}')">🎬 {{ strings.generate_movie }}</button>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const PROJECT_ID = "{{ project.id }}";
+loadMedia(PROJECT_ID);
+
+document.getElementById('fileInput').addEventListener('change', (e) => uploadFiles(PROJECT_ID, e.target.files));
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dz.classList.remove('dragover');
+    uploadFiles(PROJECT_ID, e.dataTransfer.files);
+});
+
+document.getElementById('settingsForm').addEventListener('change', () => saveSettings(PROJECT_ID));
+
+async function saveAndGenerate(projectId, lang) {
+    await saveSettings(projectId);
+    window.location.href = `/project/${projectId}/analysis?lang=${lang}`;
+}
+</script>
+{% endblock %}

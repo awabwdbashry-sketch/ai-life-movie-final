@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+    <div>
+        <h1>{{ strings.dashboard }}</h1>
+        <p class="tagline">{{ strings.tagline }}</p>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="createProject('{{ lang }}')">+ {{ strings.create_movie }}</button>
+</section>
+
+<section class="stats-row">
+    <div class="stat-card">
+        <div class="stat-value">{{ projects|length }}</div>
+        <div class="stat-label">{{ strings.projects }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_media }}</div>
+        <div class="stat-label">{{ strings.media_processed }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ movies|length }}</div>
+        <div class="stat-label">{{ strings.recent_movies }}</div>
+    </div>
+</section>
+
+<section>
+    <h2 class="section-title">{{ strings.recent_movies }}</h2>
+    {% if movies %}
+    <div class="card-grid">
+        {% for m in movies %}
+        <a class="movie-card" href="/movie/{{ m.project_id }}?lang={{ lang }}">
+            <div class="movie-thumb" style="background-image:url('{{ m.thumbnail_url }}')"></div>
+            <div class="movie-meta">
+                <div class="movie-duration">{{ m.duration_seconds|round(0)|int }}s · {{ m.resolution }}</div>
+                <div class="movie-style">{{ m.style }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">{{ strings.no_movies_yet }}</p>
+    {% endif %}
+</section>
+
+<section>
+    <h2 class="section-title">{{ strings.projects }}</h2>
+    <div class="card-grid">
+        {% for p in projects %}
+        <a class="project-card" href="/project/{{ p.id }}?lang={{ lang }}">
+            <div class="project-card-top">
+                <span class="badge badge-{{ p.status }}">{{ strings['status_' + p.status] if ('status_' + p.status) in strings else p.status }}</span>
+            </div>
+            <h3>{{ p.title }}</h3>
+            <div class="project-meta">
+                <span>📸 {{ p.photo_count }}</span>
+                <span>🎥 {{ p.video_count }}</span>
+                <span>{{ p.style }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function createProject(lang) {
+    const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title: 'Untitled Movie', language: lang})
+    });
+    const data = await res.json();
+    window.location.href = `/project/${data.id}?lang=${lang}`;
+}
+</script>
+{% endblock %}
