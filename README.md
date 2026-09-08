@@ -10,8 +10,6 @@
 
 ---
 
-# 🇸🇩 النسخة العربية
-
 ## 📖 عن المشروع
 
 **Wireless Touchpad** هو تطبيق ويب يحوّل هاتفك إلى **Wireless Touchpad** للتحكم في الكمبيوتر بدون الحاجة إلى تثبيت تطبيق على الهاتف.
@@ -240,7 +238,7 @@ GitHub: **awabwdbashry-sketch**
 
 ---
 
-# 🇬🇧 English Version
+
 
 ## 📖 About the Project
 
